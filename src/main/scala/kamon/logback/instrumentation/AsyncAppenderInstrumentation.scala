@@ -31,12 +31,12 @@ import scala.beans.BeanProperty
 object AsyncAppenderInstrumentation {
 
   @volatile private var _mdcContextPropagation: Boolean = true
-  @volatile private var _mdcTraceKey: String = "kamonTraceID"
-  @volatile private var _mdcSpanKey: String = "kamonSpanID"
+  @volatile private var _mdcTraceKey: Option[String] = None
+  @volatile private var _mdcSpanKey: Option[String] = None
   @volatile private var _mdcTracedKeys: Set[String] = Set.empty[String]
 
-  def mdcTraceKey: String = _mdcTraceKey
-  def mdcSpanKey: String = _mdcSpanKey
+  def mdcTraceKey: Option[String] = _mdcTraceKey
+  def mdcSpanKey: Option[String] = _mdcSpanKey
   def mdcContextPropagation: Boolean = _mdcContextPropagation
   def mdcTracedKeys: Set[String] = _mdcTracedKeys
 
@@ -51,8 +51,8 @@ object AsyncAppenderInstrumentation {
   private def loadConfiguration(config: Config): Unit = synchronized {
     val logbackConfig = config.getConfig("kamon.logback")
     _mdcContextPropagation = logbackConfig.getBoolean("mdc-context-propagation")
-    _mdcTraceKey = logbackConfig.getString("mdc-trace-id-key")
-    _mdcSpanKey = logbackConfig.getString("mdc-span-id-key")
+    _mdcTraceKey = if (logbackConfig.hasPath("mdc-trace-id-key")) Some(logbackConfig.getString("mdc-trace-id-key")) else None
+    _mdcSpanKey = if (logbackConfig.hasPath("mdc-trace-id-key")) Some(logbackConfig.getString("mdc-span-id-key")) else None
     _mdcTracedKeys = logbackConfig.getStringList("mdc-traced-context-keys").asScala.toSet
   }
 }
@@ -83,13 +83,20 @@ class AsyncAppenderInstrumentation {
           MDC.put(tracedkey, tracedKeyValue)
         }
       }
-      MDC.put(AsyncAppenderInstrumentation.mdcTraceKey, span.context().traceID.string)
-      MDC.put(AsyncAppenderInstrumentation.mdcSpanKey, span.context().spanID.string)
+
+      AsyncAppenderInstrumentation.mdcTraceKey.foreach { traceKey =>
+        MDC.put(traceKey, span.context().traceID.string)
+      }
+
+      AsyncAppenderInstrumentation.mdcTraceKey.foreach { spanKey =>
+        MDC.put(spanKey, span.context().spanID.string)
+      }
+
       try {
         pjp.proceed()
       } finally {
-        MDC.remove(AsyncAppenderInstrumentation.mdcTraceKey)
-        MDC.remove(AsyncAppenderInstrumentation.mdcSpanKey)
+        AsyncAppenderInstrumentation.mdcTraceKey.foreach(MDC.remove)
+        AsyncAppenderInstrumentation.mdcSpanKey.foreach(MDC.remove)
         AsyncAppenderInstrumentation.mdcTracedKeys.foreach(MDC.remove)
       }
     } else {

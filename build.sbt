@@ -1,3 +1,5 @@
+import sbt.Keys.publishMavenStyle
+
 /* =========================================================================================
  * Copyright © 2013-2017 the kamon project <http://kamon.io/>
  *
@@ -17,15 +19,21 @@ val kamonCore             = "io.kamon"        %%  "kamon-core"      % "1.1.3"
 val kamonTestkit          = "io.kamon"        %%  "kamon-testkit"   % "1.1.3"
 val latestLogbackClassic  = "ch.qos.logback"  %   "logback-classic" % "1.2.3"
 
-resolvers += Resolver.bintrayRepo("kamon-io", "snapshots")
-
 lazy val root = (project in file("."))
-  .settings(Seq(
-      name := "kamon-logback",
-      scalaVersion := "2.12.6"))
+  .settings(Seq(name := "kamon-logback", scalaVersion := "2.12.6"))
   .settings(aspectJSettings: _*)
+  .settings(
+    organization := "com.impactua",
+    licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
+    publishMavenStyle := true,
+    publishArtifact := true,
+    publishArtifact in Test := false,
+    bintrayReleaseOnPublish := true,
+    bintrayPackage := name.value,
+    bintrayOrganization in bintray := Some("yarosman")
+  )
   .settings(
     libraryDependencies ++=
       compileScope(kamonCore, latestLogbackClassic) ++
-      providedScope(aspectJ) ++
-      testScope(kamonTestkit, scalatest))
+        providedScope(aspectJ) ++
+        testScope(kamonTestkit, scalatest))

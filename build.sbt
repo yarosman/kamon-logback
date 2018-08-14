@@ -30,6 +30,7 @@ lazy val root = (project in file("."))
     publishArtifact in Test := false,
     bintrayReleaseOnPublish := true,
     bintrayPackage := name.value,
+    bintrayRepository := "maven",
     bintrayOrganization in bintray := Some("yarosman")
   )
   .settings(
